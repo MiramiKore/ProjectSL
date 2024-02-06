@@ -1,30 +1,38 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 public class CharacterMovement : MonoBehaviour
 {
-    public float moveSpeed = 5;
+    [Header("Move")]
+    [SerializeField] private float moveSpeed;
+    [SerializeField] private float rotationSpeed;
     private Vector2 _moveDirection;
-    public bool isRun;
+
+    [Header("Sprint")]
+    [SerializeField] private float sprintSpeed;
+    private float moveSpeedConst;
+
+    [Header("Jump")]
+    [SerializeField] private float jumpForce;
 
     Rigidbody rb;
-    Animator animator;
 
     public void Start()
     {
         rb = GetComponent<Rigidbody>();
-        animator = GetComponent<Animator>();
+        moveSpeedConst = moveSpeed;
     }
 
     private void Update()
     {
         Move(_moveDirection);
-        Rotation();
     }
 
+    #region Movement Script
     public void OnMove(InputAction.CallbackContext context)
     {
         _moveDirection = context.ReadValue<Vector2>();
@@ -37,26 +45,49 @@ public class CharacterMovement : MonoBehaviour
         Vector3 moveDirection = new Vector3(direction.x, 0, direction.y);
         transform.position += moveDirection * scaledMoveSpeed;
 
-        animator.SetBool("isRunning", isRun);
-
-        if (direction.x != 0 || direction.y !=0)
+        //Поворот персонажа
+        if (moveDirection != Vector3.zero)
         {
-            isRun = true;
+            Animations.isRun = true;
+            Quaternion toRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
+
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);
         }
         else
         {
-            isRun = false;
+            Animations.isRun = false;
         }    
     }
+    #endregion
 
-    private void Rotation()
+    #region Sprint Script
+    public void onSprint(InputAction.CallbackContext context)
     {
-        Vector3 currentPosition = transform.position;
-
-        Vector3 newPosition = new Vector3(_moveDirection.x, 0, _moveDirection.y);
-
-        Vector3 positionToLookAt = currentPosition + newPosition;
-
-        transform.LookAt(positionToLookAt);
+        if (context.performed)
+        {
+            moveSpeed = sprintSpeed;
+            Animations.isSprint = true;
+        }
+        else if (context.canceled)
+        {
+            moveSpeed = moveSpeedConst;
+            Animations.isSprint = false;
+        }
     }
+    #endregion
+
+    #region Jump Script
+    public void onJump(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            rb.AddForce(new Vector3(0, jumpForce, 0));
+            Animations.isJump = true;
+        }
+        else
+        {
+            Animations.isJump = false;
+        }
+    }
+    #endregion
 }
